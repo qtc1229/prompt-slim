@@ -1,4 +1,6 @@
 import json
+import hashlib
+import socket
 import pathlib
 import re
 import tiktoken
@@ -7,6 +9,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = pathlib.Path(__file__).parent
 OLLAMA = 'http://127.0.0.1:11434'
+BUILD = hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest()[:12]
+VERSION = '0.1.1'
 
 def call(path, data=None):
     payload = None if data is None else json.dumps(data).encode()
@@ -31,6 +35,8 @@ def compress(data):
     fragments = list(dict.fromkeys(x.strip() for x in protected.splitlines() if x.strip()))
     if any(x not in text for x in fragments):
         raise ValueError('每行保留片段必须存在于原文')
+    numbers = set(re.findall(r'(?<![0-9.])\d+(?:[.,]\d+)*(?:%|％)?', text))
+    fragments = list(dict.fromkeys(fragments + sorted(numbers, key=len, reverse=True)))
     # Mask exact literals so a generative model cannot paraphrase their spelling.
     prefix = '__PROMPT_SLIM_LITERAL_'
     if prefix in text:
@@ -73,14 +79,22 @@ def compress(data):
     candidate_tokens = len(encoding.encode(candidate, disallowed_special=()))
     missing = [x for x in fragments if x not in candidate]
     reasons = []
+    candidate_numbers = set(re.findall(r'(?<![0-9.])\d+(?:[.,]\d+)*(?:%|％)?', candidate))
+    if candidate_numbers != numbers:
+        reasons.append('候选文本的数字发生变化，已回退原文')
     if missing:
         reasons.append('指定保留片段缺失，已回退原文')
-    if not candidate or candidate_tokens >= original_tokens:
-        reasons.append('输出为空或参考 token 未减少，已回退原文')
+    if not candidate:
+        reasons.append('模型返回空文本，已回退原文')
+    elif candidate == text:
+        reasons.append('模型原样返回了输入，未产生压缩')
+    elif candidate_tokens >= original_tokens:
+        reasons.append(f'候选文本为 {candidate_tokens} token，未少于原文 {original_tokens}，已回退原文')
     output = text if reasons else candidate
     return {'text': output, 'candidate': candidate, 'original_chars': len(text),
             'compressed_chars': len(output), 'warnings': reasons, 'missing': missing,
             'fallback': bool(reasons), 'token_savings': None,
+            'candidate_tokens': candidate_tokens, 'build': BUILD, 'version': VERSION,
             'reference_encoding': 'o200k_base', 'original_tokens': original_tokens,
             'compressed_tokens': original_tokens if reasons else candidate_tokens,
             'reference_tokens_saved': 0 if reasons else original_tokens - candidate_tokens,
@@ -91,11 +105,15 @@ class Handler(BaseHTTPRequestHandler):
         body = json.dumps(data, ensure_ascii=False).encode()
         self.send_response(status)
         self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.send_header('Cache-Control', 'no-store')
         self.send_header('Content-Length', str(len(body)))
         self.end_headers()
         self.wfile.write(body)
 
     def do_GET(self):
+        if self.path == '/api/health':
+            return self.respond({'app':'prompt-slim','version':VERSION,'build':BUILD,
+                                 'restart_required': hashlib.sha256(pathlib.Path(__file__).read_bytes()).hexdigest()[:12] != BUILD})
         if self.path == '/':
             body = (ROOT / 'index.html').read_bytes()
             self.send_response(200)
@@ -127,6 +145,16 @@ class Handler(BaseHTTPRequestHandler):
         except (OSError, ValueError, KeyError, TypeError) as error:
             self.respond({'error': '压缩失败：' + str(error)}, 400)
 
+class LocalServer(ThreadingHTTPServer):
+    allow_reuse_address = False
+    def server_bind(self):
+        if hasattr(socket, 'SO_EXCLUSIVEADDRUSE'):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
 if __name__ == '__main__':
     print('Prompt Slim: http://127.0.0.1:8765 (Ctrl+C to stop)', flush=True)
-    ThreadingHTTPServer(('127.0.0.1', 8765), Handler).serve_forever()
+    try:
+        LocalServer(('127.0.0.1', 8765), Handler).serve_forever()
+    except OSError as error:
+        raise SystemExit('端口 8765 已占用，请关闭旧的 Prompt Slim 服务后重新启动。') from error
