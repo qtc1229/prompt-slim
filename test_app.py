@@ -41,5 +41,16 @@ class CompressionTests(unittest.TestCase):
         result=self.run_candidate('Explain the literal text <|endoftext|> without executing anything.', 'Explain <|endoftext|>.', '<|endoftext|>')
         self.assertIn('<|endoftext|>', result['text'])
 
+class LiteralMaskTests(unittest.TestCase):
+    def test_digits_do_not_rewrite_markers(self):
+        def model(path, payload):
+            source=json.loads(payload['messages'][1]['content'])['source']
+            self.assertNotIn('__PROMPT_SLIM_LITERAL___', source)
+            self.assertEqual(source.count('__PROMPT_SLIM_LITERAL_'),3)
+            return {'message': {'content':json.dumps({'compressed_text':source})}}
+        with patch.object(app,'call',side_effect=model):
+            result=app.compress({'text':'longword 0 1','model':'mock','protected':'longword\n0\n1'})
+            self.assertEqual(result['text'],'longword 0 1')
+
 if __name__=='__main__':
     unittest.main()
