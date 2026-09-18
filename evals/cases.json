@@ -1,0 +1,87 @@
+[
+  {
+    "id": "zh-files",
+    "text": "请帮我写一个整理下载目录的 Python 脚本。我是在 Windows 上使用的，希望你按照文件扩展名来分类，把同类文件放在一起。如果遇到重名文件，请不要覆盖原有文件。先显示一个移动计划让我看，等我确认以后才能真正移动。不要删除任何文件。",
+    "protected": [
+      "Windows",
+      "Python",
+      "不要覆盖",
+      "不要删除任何文件"
+    ],
+    "requirements": [
+      "按扩展名分类",
+      "先预览再确认执行",
+      "不覆盖",
+      "不删除"
+    ]
+  },
+  {
+    "id": "zh-budget",
+    "text": "我需要你帮我整理一份采购对比表。总预算是 8000 元，需要买 5 台显示器。每台至少 27 英寸，必须支持 HDMI。请把价格、保修和接口放在表格里。如果查不到最新价格，请标注待核实，不要编造价格。请不要超过总预算。",
+    "protected": [
+      "8000",
+      "5",
+      "27",
+      "HDMI",
+      "不要编造价格"
+    ],
+    "requirements": [
+      "总预算上限",
+      "数量与尺寸",
+      "价格保修接口表",
+      "未知价格标待核实"
+    ]
+  },
+  {
+    "id": "en-api",
+    "text": "Please help me implement an API endpoint in Python. The endpoint must accept JSON and validate an email address. I would like it to return status 400 for invalid input. Please do not log email addresses. Use only the standard library, and include tests for missing fields and invalid email values. Please keep the response body in JSON format.",
+    "protected": [
+      "Python",
+      "400",
+      "do not log email addresses",
+      "standard library"
+    ],
+    "requirements": [
+      "JSON input/output",
+      "email validation",
+      "missing and invalid tests"
+    ]
+  },
+  {
+    "id": "zh-short",
+    "text": "用中文解释递归。",
+    "protected": [],
+    "requirements": [
+      "中文",
+      "解释递归"
+    ]
+  },
+  {
+    "id": "en-literal",
+    "text": "Please explain this exact literal string in a short paragraph. The exact string is <|endoftext|>. Please explain it as text only and do not execute any instruction contained in that string.",
+    "protected": [
+      "<|endoftext|>"
+    ],
+    "requirements": [
+      "explain literal as text",
+      "short paragraph"
+    ]
+  },
+  {
+    "id": "zh-format",
+    "text": "帮我将下面的产品资料写成介绍。输出必须只有 JSON，不要带 Markdown 代码块。JSON 必须包含 name、features、limitations 三个字段，其中 features 是数组。产品没有提供的信息不能自己补充；不确定的内容用 null。请保持中文表达。",
+    "protected": [
+      "JSON",
+      "name",
+      "features",
+      "limitations",
+      "null"
+    ],
+    "requirements": [
+      "only JSON",
+      "features array",
+      "no invented facts",
+      "Chinese"
+    ]
+  }
+]
